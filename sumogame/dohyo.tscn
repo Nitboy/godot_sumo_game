@@ -5,16 +5,18 @@
 [node name="Dohyo" type="Sprite2D"]
 scale = Vector2(1.12305, 0.874023)
 texture = ExtResource("1_hyt0v")
+centered = false
 
 [node name="MarkerEast" type="Marker2D" parent="."]
-position = Vector2(-140.688, -56.0626)
+position = Vector2(367.063, 446.487)
 scale = Vector2(1, 1)
 
 [node name="MarkerWest" type="Marker2D" parent="."]
-position = Vector2(138.015, -56.6347)
+position = Vector2(645.767, 445.915)
 scale = Vector2(1, 1)
 
 [node name="DohyoArea" type="Area2D" parent="."]
+position = Vector2(507.752, 502.55)
 
 [node name="CollisionPolygon2D2" type="CollisionPolygon2D" parent="DohyoArea"]
 scale = Vector2(1, 1)

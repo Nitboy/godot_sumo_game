@@ -68,14 +68,22 @@ public partial class Main : Node
 
 		if (body == eastWrestler)
 		{
-			resultLabel.Text = "WEST WINS!";
-			stylebox.BgColor = new Color(0.2f, 0.4f, 1); // Blue for east
+			GD.Print("East wrestler lost!");			
+			resultLabel.Text = "WEST WINS!";       
+			
+			stylebox.BgColor = new Color(0.2f, 0.4f, 1); // Blue for west
 		}
 		else if (body == westWrestler)
 		{
-			resultLabel.Text = "EAST WINS!";
-			stylebox.BgColor = new Color(1, 0.2f, 0.2f); // Red for west
+			GD.Print("West wrestler lost!");
+			resultLabel.Text = "EAST WINS!";    
+			stylebox.BgColor = new Color(1, 0.2f, 0.2f); // Red for east
 		}
+		
+		// Set high linear damping for both wrestlers after game over
+		eastWrestler.LinearDamp = 50f;
+		westWrestler.LinearDamp = 50f;
+		
 		resultPanel.AddThemeStyleboxOverride("panel", stylebox);
 		hud.Show();
 	}
