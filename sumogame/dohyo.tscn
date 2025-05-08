@@ -1,0 +1,21 @@
+[gd_scene load_steps=2 format=3 uid="uid://dwjbf1nu26l8u"]
+
+[ext_resource type="Texture2D" uid="uid://dmn3y1pt5f25v" path="res://Assets/dohyo.png" id="1_hyt0v"]
+
+[node name="Dohyo" type="Sprite2D"]
+scale = Vector2(1.12305, 0.874023)
+texture = ExtResource("1_hyt0v")
+
+[node name="MarkerEast" type="Marker2D" parent="."]
+position = Vector2(-140.688, -56.0626)
+scale = Vector2(1, 1)
+
+[node name="MarkerWest" type="Marker2D" parent="."]
+position = Vector2(138.015, -56.6347)
+scale = Vector2(1, 1)
+
+[node name="DohyoArea" type="Area2D" parent="."]
+
+[node name="CollisionPolygon2D2" type="CollisionPolygon2D" parent="DohyoArea"]
+scale = Vector2(1, 1)
+polygon = PackedVector2Array(-351.723, 50.914, -357.956, -184.778, -281.378, -300.335, -130.005, -374.704, 110.412, -371.272, 204.798, -347.245, 318.773, -261.435, 380.213, -111.553, 372.199, 48.6257, 276.923, 192.787, 194.112, 238.552, 64.1093, 290.038, -96.1685, 290.038, -226.172, 247.705, -325.01, 143.589)

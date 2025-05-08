@@ -1,0 +1,56 @@
+[gd_scene load_steps=6 format=3 uid="uid://bliyvojq44jaw"]
+
+[ext_resource type="Texture2D" uid="uid://cbr4ttptoauti" path="res://Assets/sumoS2.png" id="1_2oy1v"]
+[ext_resource type="Script" uid="uid://bdnidagf4g28v" path="res://Rikishi.cs" id="1_nl5a8"]
+
+[sub_resource type="CSharpScript" id="CSharpScript_nl5a8"]
+script/source = "using Godot;
+using System;
+
+public partial class Player1 : Sprite2D
+{
+	
+	private int _speed = 400;
+	private float _angularSpeed = Mathf.Pi;
+
+	// Called when the node enters the scene tree for the first time.
+	public override void _Ready()
+	{
+	
+	}
+
+	// Called every frame. 'delta' is the elapsed time since the previous frame.
+	public override void _Process(double delta)
+	{
+		
+	}
+
+}
+"
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_2oy1v"]
+radius = 54.0093
+
+[sub_resource type="CSharpScript" id="CSharpScript_d2pfv"]
+script/source = "using Godot;
+using System;
+
+public partial class CollisionShape2d : CollisionShape2D
+{
+	
+}
+"
+
+[node name="CharacterBody2D" type="CharacterBody2D" groups=["wrestler"]]
+script = ExtResource("1_nl5a8")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(-0.29673, -25.4844)
+scale = Vector2(0.394081, 0.394081)
+texture = ExtResource("1_2oy1v")
+script = SubResource("CSharpScript_nl5a8")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(-0.29673, -0.484421)
+shape = SubResource("CircleShape2D_2oy1v")
+script = SubResource("CSharpScript_d2pfv")
