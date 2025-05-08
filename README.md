@@ -2,7 +2,7 @@
 
 A 2D sumo wrestling game where two wrestlers battle to push each other out of the ring. Created with Godot Mono 4.4.1.
 
-![Sumo Game](https://github.com/Nitboy/godot_sumo_game/assets/screenshot.png)
+![Sumo Game](Sumo%20Game.png)
 
 ## Requirements
 
