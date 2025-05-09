@@ -45,13 +45,12 @@ public partial class WrestlerBot : Node
     // Controller bot behavior states
     private enum ControllerState
     {
-        Capturing,   // Moving to center
-        Attacking,   // Moving toward opponent like chaser
-        Returning    // Returning to center after contact
+        CenterSeeking,   // Moving to/returning to center
+        Attacking        // Moving toward opponent like chaser
     }
     
     // Current controller state
-    private ControllerState controllerState = ControllerState.Capturing;
+    private ControllerState controllerState = ControllerState.CenterSeeking;
     // Timer for controller state changes
     private float controllerStateTimer = 0;
     // Flag to track if contact was made with opponent
@@ -146,7 +145,7 @@ public partial class WrestlerBot : Node
                     if (!madeContactWithOpponent)
                     {
                         madeContactWithOpponent = true;
-                        controllerState = ControllerState.Returning;
+                        controllerState = ControllerState.CenterSeeking;
                         controllerStateTimer = 0;
                         GD.Print("Controller: Contact made with opponent, returning to center");
                     }
@@ -295,17 +294,17 @@ public partial class WrestlerBot : Node
         // State machine logic for Controller bot
         switch (controllerState)
         {
-            case ControllerState.Capturing:
+            case ControllerState.CenterSeeking:
                 // Moving to center
                 finalDirection = toCenter;
-                GD.Print($"Controller: Capturing center, distance: {myDistanceToCenter:F2}");
+                GD.Print($"Controller: Moving to center, distance: {myDistanceToCenter:F2}");
                 
                 // Transition to Attacking once center is captured
                 if (myDistanceToCenter <= centerThreshold)
                 {
                     controllerState = ControllerState.Attacking;
                     controllerStateTimer = 0;
-                    GD.Print("Controller: Center captured, now attacking opponent");
+                    GD.Print("Controller: Center reached, now attacking opponent");
                 }
                 break;
                 
@@ -313,20 +312,6 @@ public partial class WrestlerBot : Node
                 // Like Chaser, move directly toward opponent
                 finalDirection = (opponentPosition - myPosition).Normalized();
                 GD.Print($"Controller: Attacking opponent, distance: {distanceBetweenWrestlers:F2}");
-                break;
-                
-            case ControllerState.Returning:
-                // Return to center after making contact
-                finalDirection = toCenter;
-                GD.Print($"Controller: Returning to center, distance: {myDistanceToCenter:F2}");
-                
-                // Transition back to Capturing state when close to center
-                if (myDistanceToCenter <= centerThreshold)
-                {
-                    controllerState = ControllerState.Capturing;
-                    controllerStateTimer = 0;
-                    GD.Print("Controller: Back at center, resetting cycle");
-                }
                 break;
                 
             default:
