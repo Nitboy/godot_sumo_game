@@ -32,6 +32,9 @@ public partial class Main : Node
 	}
 	
 	private WestInputMethod currentWestInputMethod = WestInputMethod.Numpad;
+	
+	// Current bot strategy label
+	private Label botStrategyLabel;
 
 	// Called when the node enters the scene tree for the first time.
 	public override void _Ready()
@@ -78,6 +81,23 @@ public partial class Main : Node
 		westBot = new WrestlerBot();
 		AddChild(westBot);
 		westBot.Initialize(westWrestler, eastWrestler, dohyoCenter);
+		
+		// Create bot strategy label
+		CreateBotStrategyLabel();
+	}
+	
+	private void CreateBotStrategyLabel()
+	{
+		botStrategyLabel = new Label();
+		botStrategyLabel.Position = new Vector2(10, 10);
+		botStrategyLabel.Text = "Bot Strategy: Chaser (1)";
+		botStrategyLabel.Visible = false;
+		
+		// Add to canvas layer for UI
+		var canvas = new CanvasLayer();
+		canvas.Layer = 10; // Above other UI
+		AddChild(canvas);
+		canvas.AddChild(botStrategyLabel);
 	}
 
 	private void OnBodyExited(Node body)
@@ -126,6 +146,32 @@ public partial class Main : Node
 			currentWestInputMethod = WestInputMethod.Controller;
 		else if (Input.IsKeyPressed(Key.F4))
 			currentWestInputMethod = WestInputMethod.Bot;
+			
+		// Show or hide bot strategy label
+		botStrategyLabel.Visible = (currentWestInputMethod == WestInputMethod.Bot);
+		
+		// Switch bot strategies with number keys when in Bot input mode
+		if (currentWestInputMethod == WestInputMethod.Bot)
+		{
+			if (Input.IsKeyPressed(Key.Key1) || Input.IsKeyPressed(Key.Kp1))
+			{
+				westBot.SetStrategy(WrestlerBot.BotStrategy.Chaser);
+				botStrategyLabel.Text = "Bot Strategy: Chaser (1)";
+			}
+			else if (Input.IsKeyPressed(Key.Key2) || Input.IsKeyPressed(Key.Kp2))
+			{
+				westBot.SetStrategy(WrestlerBot.BotStrategy.Circler);
+				botStrategyLabel.Text = "Bot Strategy: Circler (2)";
+			}
+			else if (Input.IsKeyPressed(Key.Key3) || Input.IsKeyPressed(Key.Kp3))
+			{
+				westBot.SetStrategy(WrestlerBot.BotStrategy.Controller);
+				botStrategyLabel.Text = "Bot Strategy: Controller (3)";
+			}
+		}
+		
+		// Update bot timers
+		westBot.UpdateTimers(delta);
 	}
 
 	public override void _PhysicsProcess(double delta)
