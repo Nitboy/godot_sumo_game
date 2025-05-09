@@ -46,16 +46,20 @@ public partial class WrestlerBot : Node
     private enum ControllerState
     {
         Capturing,   // Moving to center
-        Attacking,   // Pushing opponent out
-        Vulnerable   // Temporarily distracted/vulnerable
+        Attacking,   // Moving toward opponent like chaser
+        Returning    // Returning to center after contact
     }
     
     // Current controller state
     private ControllerState controllerState = ControllerState.Capturing;
     // Timer for controller state changes
     private float controllerStateTimer = 0;
-    // Target for vulnerable state
-    private Vector2 vulnerableTarget;
+    // Flag to track if contact was made with opponent
+    private bool madeContactWithOpponent = false;
+    // Position to track opponent contact
+    private Vector2 lastOpponentPosition = Vector2.Zero;
+    // Previous frame's distance to opponent
+    private float previousDistanceToOpponent = float.MaxValue;
 
     // Called when the node enters the scene tree for the first time.
     public override void _Ready()
@@ -131,44 +135,32 @@ public partial class WrestlerBot : Node
         {
             controllerStateTimer += (float)delta;
             
-            // State transition logic
-            switch (controllerState)
+            // Check for contact with opponent
+            if (wrestler != null && opponent != null && controllerState == ControllerState.Attacking)
             {
-                case ControllerState.Attacking:
-                    // After 3-5 seconds of attacking, become vulnerable
-                    if (controllerStateTimer > 3 + random.Next(3))
+                float currentDistanceToOpponent = (wrestler.GlobalPosition - opponent.GlobalPosition).Length();
+                
+                // Detect collision/contact by sudden change in distance or very close proximity
+                if (previousDistanceToOpponent - currentDistanceToOpponent > 20 || currentDistanceToOpponent < 70)
+                {
+                    if (!madeContactWithOpponent)
                     {
-                        SetVulnerableState();
-                    }
-                    break;
-                    
-                case ControllerState.Vulnerable:
-                    // Stay vulnerable for 1-2 seconds
-                    if (controllerStateTimer > 1 + random.Next(2))
-                    {
-                        controllerState = ControllerState.Capturing;
+                        madeContactWithOpponent = true;
+                        controllerState = ControllerState.Returning;
                         controllerStateTimer = 0;
-                        GD.Print("Controller: Returning to center capture");
+                        GD.Print("Controller: Contact made with opponent, returning to center");
                     }
-                    break;
+                }
+                else if (madeContactWithOpponent && currentDistanceToOpponent > 100)
+                {
+                    // Reset contact flag once we're away from opponent
+                    madeContactWithOpponent = false;
+                }
+                
+                previousDistanceToOpponent = currentDistanceToOpponent;
+                lastOpponentPosition = opponent.GlobalPosition;
             }
         }
-    }
-    
-    private void SetVulnerableState()
-    {
-        controllerState = ControllerState.Vulnerable;
-        controllerStateTimer = 0;
-        
-        // Choose a random point away from center to be distracted by
-        float angle = (float)(random.NextDouble() * Math.PI * 2);
-        float distanceFromCenter = ringRadius * 0.6f;
-        vulnerableTarget = dohyoCenter + new Vector2(
-            (float)Math.Cos(angle) * distanceFromCenter,
-            (float)Math.Sin(angle) * distanceFromCenter
-        );
-        
-        GD.Print("Controller: Becoming vulnerable, distracted by something");
     }
     
     // Strategy 1: Chaser - Always move toward opponent
@@ -290,66 +282,56 @@ public partial class WrestlerBot : Node
         
         // Check distances
         float myDistanceToCenter = (myPosition - dohyoCenter).Length();
-        float opponentDistanceToCenter = (opponentPosition - dohyoCenter).Length();
         float distanceBetweenWrestlers = (myPosition - opponentPosition).Length();
         
         // Use the estimated ring radius or fallback
         float localRingRadius = ringRadius > 0 ? ringRadius : 200;
-        
-        // If we're in vulnerable state, get distracted
-        if (controllerState == ControllerState.Vulnerable)
-        {
-            Vector2 toVulnerableTarget = (vulnerableTarget - myPosition).Normalized();
-            GD.Print("Controller: Distracted, moving away from center");
-            return toVulnerableTarget;
-        }
         
         // Adjust threshold to 15% of estimated ring radius
         float centerThreshold = localRingRadius * 0.15f;
         
         Vector2 finalDirection;
         
-        if (myDistanceToCenter > centerThreshold)
+        // State machine logic for Controller bot
+        switch (controllerState)
         {
-            // Not at center yet, move toward center
-            controllerState = ControllerState.Capturing;
-            finalDirection = toCenter;
-        }
-        else
-        {
-            // We're at the center, now attack aggressively
-            controllerState = ControllerState.Attacking;
-            Vector2 toOpponent = (opponentPosition - myPosition).Normalized();
-            
-            // Calculate push vector - directly away from center
-            Vector2 pushOutDirection = (opponentPosition - dohyoCenter).Normalized();
-            
-            // Calculate the angle between our direct path to opponent and the ideal push-out path
-            float dot = toOpponent.Dot(pushOutDirection);
-            
-            if (opponentDistanceToCenter > localRingRadius * 0.7f)
-            {
-                // Opponent is close to the edge - use direct ram to push them out
-                finalDirection = toOpponent;
-                GD.Print("Controller: Ramming opponent at edge");
-            }
-            else if (dot > 0.7f)
-            {
-                // We're in a good position to push them straight out (within ~45 degrees)
-                finalDirection = toOpponent;
-                GD.Print("Controller: Good push angle, moving directly to opponent");
-            }
-            else
-            {
-                // Need to reposition for a better push angle
-                // Move toward a position better aligned for pushing out
-                Vector2 repositionTarget = dohyoCenter + pushOutDirection * (localRingRadius * 0.3f);
-                Vector2 toRepositionPoint = (repositionTarget - myPosition).Normalized();
+            case ControllerState.Capturing:
+                // Moving to center
+                finalDirection = toCenter;
+                GD.Print($"Controller: Capturing center, distance: {myDistanceToCenter:F2}");
                 
-                // Apply some weight to not lose center control completely
-                finalDirection = (toRepositionPoint * 0.8f + toCenter * 0.2f).Normalized();
-                GD.Print("Controller: Repositioning for better push angle");
-            }
+                // Transition to Attacking once center is captured
+                if (myDistanceToCenter <= centerThreshold)
+                {
+                    controllerState = ControllerState.Attacking;
+                    controllerStateTimer = 0;
+                    GD.Print("Controller: Center captured, now attacking opponent");
+                }
+                break;
+                
+            case ControllerState.Attacking:
+                // Like Chaser, move directly toward opponent
+                finalDirection = (opponentPosition - myPosition).Normalized();
+                GD.Print($"Controller: Attacking opponent, distance: {distanceBetweenWrestlers:F2}");
+                break;
+                
+            case ControllerState.Returning:
+                // Return to center after making contact
+                finalDirection = toCenter;
+                GD.Print($"Controller: Returning to center, distance: {myDistanceToCenter:F2}");
+                
+                // Transition back to Capturing state when close to center
+                if (myDistanceToCenter <= centerThreshold)
+                {
+                    controllerState = ControllerState.Capturing;
+                    controllerStateTimer = 0;
+                    GD.Print("Controller: Back at center, resetting cycle");
+                }
+                break;
+                
+            default:
+                finalDirection = toCenter;
+                break;
         }
         
         return finalDirection;
