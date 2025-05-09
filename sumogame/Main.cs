@@ -14,14 +14,17 @@ public partial class Main : Node
 	private Area2D dohyoArea;
 	private WrestlerBot westBot; // Bot controlling west wrestler
 
-	private float acceleration = 800f;
-	private float maxSpeed = 550f;
+	private float acceleration = 1000f;
+	private float maxSpeed = 600f;
 	private float friction = 300f;
 
 	private Texture2D blueTexture;
 	private Texture2D redTexture;
 	
 	private Vector2 dohyoCenter;
+	
+	// Reference to the wrestler scene for respawning
+	private PackedScene wrestlerScene;
 	
 	// Input method for west wrestler
 	private enum WestInputMethod
@@ -32,7 +35,7 @@ public partial class Main : Node
 		Bot
 	}
 	
-	private WestInputMethod currentWestInputMethod = WestInputMethod.Numpad;
+	private WestInputMethod currentWestInputMethod = WestInputMethod.Controller;
 	
 	// Current bot strategy label
 	private Label botStrategyLabel;
@@ -54,39 +57,21 @@ public partial class Main : Node
 		// Calculate dohyo center as the midpoint between the east and west markers
 		dohyoCenter = (markerEast.GlobalPosition + markerWest.GlobalPosition) / 2;
 		
-		// Create a visual marker for the center (for debugging)
+		// Create a marker for the center (but don't show it)
 		centerMarker = new Marker2D();
 		centerMarker.GlobalPosition = dohyoCenter;
 		AddChild(centerMarker);
 		
-		// Add a visible ColorRect to the center marker
-		var centerVisual = new ColorRect();
-		centerVisual.Color = new Color(1, 0, 0, 0.5f); // Semi-transparent red
-		centerVisual.Size = new Vector2(20, 20); // 20x20 pixels
-		centerVisual.Position = new Vector2(-10, -10); // Center the rect
-		centerMarker.AddChild(centerVisual);
+		// No visible element for the center marker
+		// Just keeping the marker node for code that might reference it
 
-		var wrestlerScene = GD.Load<PackedScene>("res://rikishi_rigid.tscn");
-
+		// Load wrestler scene and textures
+		wrestlerScene = GD.Load<PackedScene>("res://rikishi_rigid.tscn");
 		blueTexture = GD.Load<Texture2D>("res://Assets/sumoS2.png");
 		redTexture = GD.Load<Texture2D>("res://Assets/sumoS1.png");
 
-		eastWrestler = wrestlerScene.Instantiate<RigidBody2D>();
-		westWrestler = wrestlerScene.Instantiate<RigidBody2D>();
-
-		eastWrestler.Position = markerEast.GlobalPosition;
-		westWrestler.Position = markerWest.GlobalPosition;
-
-		AddChild(eastWrestler);
-		AddChild(westWrestler);
-
-		// Set blue texture for east wrestler
-		var eastSprite = eastWrestler.GetNode<Sprite2D>("Sprite2D");
-		eastSprite.Texture = blueTexture;
-
-		// Set red texture for west wrestler
-		var westSprite = westWrestler.GetNode<Sprite2D>("Sprite2D");
-		westSprite.Texture = redTexture;
+		// Create initial wrestlers
+		CreateWrestlers();
 
 		// Get the DohyoArea node
 		dohyoArea = dohyo.GetNode<Area2D>("DohyoArea");
@@ -97,25 +82,51 @@ public partial class Main : Node
 		var restartButton = hud.GetNode<Button>("ResultPanel/RestartButton");
 		restartButton.Pressed += OnRestartButtonPressed;
 		
+		// Create bot strategy label
+		CreateBotStrategyLabel();
+		
+		// Debug log center position
+		GD.Print("Dohyo Center Position: ", dohyoCenter);
+	}
+	
+	// Creates and sets up the wrestlers
+	private void CreateWrestlers()
+	{
+		// Create new wrestler instances
+		eastWrestler = wrestlerScene.Instantiate<RigidBody2D>();
+		westWrestler = wrestlerScene.Instantiate<RigidBody2D>();
+
+		// Set initial positions
+		eastWrestler.Position = markerEast.GlobalPosition;
+		westWrestler.Position = markerWest.GlobalPosition;
+
+		// Add to scene
+		AddChild(eastWrestler);
+		AddChild(westWrestler);
+
+		// Set blue texture for east wrestler
+		var eastSprite = eastWrestler.GetNode<Sprite2D>("Sprite2D");
+		eastSprite.Texture = blueTexture;
+
+		// Set red texture for west wrestler
+		var westSprite = westWrestler.GetNode<Sprite2D>("Sprite2D");
+		westSprite.Texture = redTexture;
+		
 		// Setup the WrestlerBot for west wrestler
-		westBot = new WrestlerBot();
-		AddChild(westBot);
+		if (westBot == null)
+		{
+			westBot = new WrestlerBot();
+			AddChild(westBot);
+		}
+		
 		westBot.Initialize(westWrestler, eastWrestler, dohyoCenter);
 		
 		// Calculate and set ring radius (distance from center to markers)
 		float eastRadius = (markerEast.GlobalPosition - dohyoCenter).Length();
 		float westRadius = (markerWest.GlobalPosition - dohyoCenter).Length();
 		float avgRadius = (eastRadius + westRadius) / 2;
-		westBot.SetRingRadius(avgRadius);
+		westBot.SetRingRadius(avgRadius);	
 		
-		// Debug log radius
-		GD.Print("Ring Radius: ", avgRadius);
-		
-		// Create bot strategy label
-		CreateBotStrategyLabel();
-		
-		// Debug log center position
-		GD.Print("Dohyo Center Position: ", dohyoCenter);
 	}
 	
 	private void CreateBotStrategyLabel()
@@ -134,10 +145,9 @@ public partial class Main : Node
 
 	private void OnBodyExited(Node body)
 	{
-		if (gameOver || isResetting) return; // Prevent multiple triggers
+		if (gameOver) return; // Prevent multiple triggers
 		
-		gameOver = true;
-		canResetMatch = true;
+		gameOver = true;	
 		
 		var resultLabel = hud.GetNode<Label>("ResultPanel/ResultLabel");
 		var resultPanel = hud.GetNode<Panel>("ResultPanel");
@@ -167,80 +177,12 @@ public partial class Main : Node
 
 	private void OnRestartButtonPressed()
 	{
-		ResetMatch();
+		if(gameOver)
+		{
+			ResetGame();
+		}
 	}
-	
-	// Reset wrestlers without reloading the whole scene
-	private void ResetMatch()
-	{
-		if (isResetting) return; // Prevent multiple resets at once
-		isResetting = true;
 		
-		// Prepare for reset
-		PrepareWrestlersForReset();
-		
-		// Use CallDeferred to ensure the physics engine gets a chance to process the changes
-		CallDeferred("CompleteReset");
-	}
-	
-	private void PrepareWrestlersForReset()
-	{
-		// Freeze the bodies to prevent further physics interaction
-		eastWrestler.Freeze = true;
-		westWrestler.Freeze = true;
-		
-		// Hide the result panel
-		hud.Hide();
-		
-		// Reset bot state
-		westBot.ResetState();
-		
-		GD.Print("Preparing wrestlers for reset...");
-	}
-	
-	// Called via CallDeferred to complete the reset after physics frame
-	private void CompleteReset()
-	{
-		// Reset positions - force global position update
-		eastWrestler.GlobalPosition = markerEast.GlobalPosition;
-		westWrestler.GlobalPosition = markerWest.GlobalPosition;
-		
-		// Reset velocities
-		eastWrestler.LinearVelocity = Vector2.Zero;
-		westWrestler.LinearVelocity = Vector2.Zero;
-		
-		// Reset rotation and angular velocity
-		eastWrestler.Rotation = 0;
-		westWrestler.Rotation = 0;
-		eastWrestler.AngularVelocity = 0;
-		westWrestler.AngularVelocity = 0;
-		
-		// Reset dampening
-		eastWrestler.LinearDamp = 0;
-		westWrestler.LinearDamp = 0;
-		
-		// Reset constant forces
-		eastWrestler.ConstantForce = Vector2.Zero;
-		westWrestler.ConstantForce = Vector2.Zero;
-		
-		// Wait one more frame before unfreezing
-		CallDeferred("UnfreezeWrestlers");
-	}
-	
-	private void UnfreezeWrestlers()
-	{
-		// Unfreeze the bodies to allow physics interaction again
-		eastWrestler.Freeze = false;
-		westWrestler.Freeze = false;
-		
-		// Reset game state flags
-		gameOver = false;
-		canResetMatch = false;
-		isResetting = false;
-		
-		GD.Print("Match reset complete - wrestlers repositioned and unfrozen");
-	}
-	
 	// Full game reset by reloading the scene
 	private void ResetGame()
 	{
@@ -251,9 +193,10 @@ public partial class Main : Node
 	public override void _Process(double delta)
 	{
 		// Check for reset input
-		if (canResetMatch && !isResetting && (Input.IsKeyPressed(Key.Space) || Input.IsKeyPressed(Key.Enter)))
+		if (gameOver && (Input.IsKeyPressed(Key.Space) || Input.IsKeyPressed(Key.Enter)))
 		{
-			ResetMatch();
+			ResetGame();
+			return;
 		}
 		
 		// Switch input methods with function keys
@@ -290,12 +233,15 @@ public partial class Main : Node
 		}
 		
 		// Update bot timers
-		westBot.UpdateTimers(delta);
+		if (westBot != null)
+		{
+			westBot.UpdateTimers(delta);
+		}
 	}
 
 	public override void _PhysicsProcess(double delta)
 	{
-		if (gameOver || isResetting) return;
+		if (gameOver || isResetting || eastWrestler == null || westWrestler == null) return;
 		
 		// East wrestler: WASD
 		Vector2 eastInput = Vector2.Zero;
