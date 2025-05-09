@@ -36,6 +36,10 @@ public partial class Main : Node
 	
 	// Current bot strategy label
 	private Label botStrategyLabel;
+	
+	// Game state tracking
+	private bool gameOver = false;
+	private bool canResetMatch = false;
 
 	// Called when the node enters the scene tree for the first time.
 	public override void _Ready()
@@ -129,6 +133,11 @@ public partial class Main : Node
 
 	private void OnBodyExited(Node body)
 	{
+		if (gameOver) return; // Prevent multiple triggers
+		
+		gameOver = true;
+		canResetMatch = true;
+		
 		var resultLabel = hud.GetNode<Label>("ResultPanel/ResultLabel");
 		var resultPanel = hud.GetNode<Panel>("ResultPanel");
 		var stylebox = new StyleBoxFlat();
@@ -157,13 +166,53 @@ public partial class Main : Node
 
 	private void OnRestartButtonPressed()
 	{
-		// Reload the current scene
+		ResetMatch();
+	}
+	
+	// Reset wrestlers without reloading the whole scene
+	private void ResetMatch()
+	{
+		// Hide the result panel
+		hud.Hide();
+		
+		// Reset positions
+		eastWrestler.Position = markerEast.GlobalPosition;
+		westWrestler.Position = markerWest.GlobalPosition;
+		
+		// Reset velocities
+		eastWrestler.LinearVelocity = Vector2.Zero;
+		westWrestler.LinearVelocity = Vector2.Zero;
+		
+		// Reset dampening
+		eastWrestler.LinearDamp = 0;
+		westWrestler.LinearDamp = 0;
+		
+		// Reset rotation
+		eastWrestler.Rotation = 0;
+		westWrestler.Rotation = 0;
+		
+		// Reset game state
+		gameOver = false;
+		canResetMatch = false;
+		
+		GD.Print("Match reset - wrestlers repositioned");
+	}
+	
+	// Full game reset by reloading the scene
+	private void ResetGame()
+	{
 		GetTree().ReloadCurrentScene();
 	}
 
 	// Called every frame. 'delta' is the elapsed time since the previous frame.
 	public override void _Process(double delta)
 	{
+		// Check for reset input
+		if (canResetMatch && (Input.IsKeyPressed(Key.Space) || Input.IsKeyPressed(Key.Enter)))
+		{
+			ResetMatch();
+		}
+		
 		// Switch input methods with function keys
 		if (Input.IsKeyPressed(Key.F1))
 			currentWestInputMethod = WestInputMethod.Arrows;
@@ -203,6 +252,8 @@ public partial class Main : Node
 
 	public override void _PhysicsProcess(double delta)
 	{
+		if (gameOver) return;
+		
 		// East wrestler: WASD
 		Vector2 eastInput = Vector2.Zero;
 		if (Input.IsActionPressed("move_up")) eastInput.Y -= 1;
