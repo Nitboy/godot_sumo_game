@@ -15,7 +15,7 @@ public partial class Main : Node
 	private WrestlerBot westBot; // Bot controlling west wrestler
 
 	private float acceleration = 800f;
-	private float maxSpeed = 450f;
+	private float maxSpeed = 550f;
 	private float friction = 300f;
 
 	private Texture2D blueTexture;

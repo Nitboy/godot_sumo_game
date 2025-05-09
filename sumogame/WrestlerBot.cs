@@ -41,6 +41,21 @@ public partial class WrestlerBot : Node
     private bool circleClockwise = true;
     // Random number generator
     private Random random = new Random();
+    
+    // Controller bot behavior states
+    private enum ControllerState
+    {
+        Capturing,   // Moving to center
+        Attacking,   // Pushing opponent out
+        Vulnerable   // Temporarily distracted/vulnerable
+    }
+    
+    // Current controller state
+    private ControllerState controllerState = ControllerState.Capturing;
+    // Timer for controller state changes
+    private float controllerStateTimer = 0;
+    // Target for vulnerable state
+    private Vector2 vulnerableTarget;
 
     // Called when the node enters the scene tree for the first time.
     public override void _Ready()
@@ -112,6 +127,48 @@ public partial class WrestlerBot : Node
                 circleTimer = 0;
             }
         }
+        else if (currentStrategy == BotStrategy.Controller)
+        {
+            controllerStateTimer += (float)delta;
+            
+            // State transition logic
+            switch (controllerState)
+            {
+                case ControllerState.Attacking:
+                    // After 3-5 seconds of attacking, become vulnerable
+                    if (controllerStateTimer > 3 + random.Next(3))
+                    {
+                        SetVulnerableState();
+                    }
+                    break;
+                    
+                case ControllerState.Vulnerable:
+                    // Stay vulnerable for 1-2 seconds
+                    if (controllerStateTimer > 1 + random.Next(2))
+                    {
+                        controllerState = ControllerState.Capturing;
+                        controllerStateTimer = 0;
+                        GD.Print("Controller: Returning to center capture");
+                    }
+                    break;
+            }
+        }
+    }
+    
+    private void SetVulnerableState()
+    {
+        controllerState = ControllerState.Vulnerable;
+        controllerStateTimer = 0;
+        
+        // Choose a random point away from center to be distracted by
+        float angle = (float)(random.NextDouble() * Math.PI * 2);
+        float distanceFromCenter = ringRadius * 0.6f;
+        vulnerableTarget = dohyoCenter + new Vector2(
+            (float)Math.Cos(angle) * distanceFromCenter,
+            (float)Math.Sin(angle) * distanceFromCenter
+        );
+        
+        GD.Print("Controller: Becoming vulnerable, distracted by something");
     }
     
     // Strategy 1: Chaser - Always move toward opponent
@@ -239,21 +296,29 @@ public partial class WrestlerBot : Node
         // Use the estimated ring radius or fallback
         float localRingRadius = ringRadius > 0 ? ringRadius : 200;
         
-        GD.Print($"Controller Bot - Distance to center: {myDistanceToCenter}, Ring radius: {localRingRadius}");
-        
-        Vector2 finalDirection;
+        // If we're in vulnerable state, get distracted
+        if (controllerState == ControllerState.Vulnerable)
+        {
+            Vector2 toVulnerableTarget = (vulnerableTarget - myPosition).Normalized();
+            GD.Print("Controller: Distracted, moving away from center");
+            return toVulnerableTarget;
+        }
         
         // Adjust threshold to 15% of estimated ring radius
         float centerThreshold = localRingRadius * 0.15f;
         
+        Vector2 finalDirection;
+        
         if (myDistanceToCenter > centerThreshold)
         {
             // Not at center yet, move toward center
+            controllerState = ControllerState.Capturing;
             finalDirection = toCenter;
         }
         else
         {
             // We're at the center, now attack aggressively
+            controllerState = ControllerState.Attacking;
             Vector2 toOpponent = (opponentPosition - myPosition).Normalized();
             
             // Calculate push vector - directly away from center

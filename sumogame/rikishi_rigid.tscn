@@ -2,7 +2,7 @@
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_830pk"]
 friction = 0.1
-bounce = 0.11
+bounce = 0.4
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xayuv"]
 radius = 54.0093
