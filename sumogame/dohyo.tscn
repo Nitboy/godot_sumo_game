@@ -9,15 +9,12 @@ centered = false
 
 [node name="MarkerEast" type="Marker2D" parent="."]
 position = Vector2(367.063, 446.487)
-scale = Vector2(1, 1)
 
 [node name="MarkerWest" type="Marker2D" parent="."]
 position = Vector2(645.767, 445.915)
-scale = Vector2(1, 1)
 
 [node name="DohyoArea" type="Area2D" parent="."]
 position = Vector2(507.752, 502.55)
 
 [node name="CollisionPolygon2D2" type="CollisionPolygon2D" parent="DohyoArea"]
-scale = Vector2(1, 1)
 polygon = PackedVector2Array(-351.723, 50.914, -357.956, -184.778, -281.378, -300.335, -130.005, -374.704, 110.412, -371.272, 204.798, -347.245, 318.773, -261.435, 380.213, -111.553, 372.199, 48.6257, 276.923, 192.787, 194.112, 238.552, 64.1093, 290.038, -96.1685, 290.038, -226.172, 247.705, -325.01, 143.589)

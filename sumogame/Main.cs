@@ -11,6 +11,7 @@ public partial class Main : Node
 	private Marker2D markerWest;
 
 	private Area2D dohyoArea;
+	private WrestlerBot westBot; // Bot controlling west wrestler
 
 	private float acceleration = 800f;
 	private float maxSpeed = 450f;
@@ -18,6 +19,19 @@ public partial class Main : Node
 
 	private Texture2D blueTexture;
 	private Texture2D redTexture;
+	
+	private Vector2 dohyoCenter;
+	
+	// Input method for west wrestler
+	private enum WestInputMethod
+	{
+		Arrows,
+		Numpad,
+		Controller,
+		Bot
+	}
+	
+	private WestInputMethod currentWestInputMethod = WestInputMethod.Numpad;
 
 	// Called when the node enters the scene tree for the first time.
 	public override void _Ready()
@@ -27,6 +41,7 @@ public partial class Main : Node
 		hud.Hide();
 		markerEast = dohyo.GetNode<Marker2D>("MarkerEast");
 		markerWest = dohyo.GetNode<Marker2D>("MarkerWest");
+		dohyoCenter = ((Node2D)dohyo).GlobalPosition;
 
 		var wrestlerScene = GD.Load<PackedScene>("res://rikishi_rigid.tscn");
 
@@ -58,6 +73,11 @@ public partial class Main : Node
 		// Connect RestartButton
 		var restartButton = hud.GetNode<Button>("ResultPanel/RestartButton");
 		restartButton.Pressed += OnRestartButtonPressed;
+		
+		// Setup the WrestlerBot for west wrestler
+		westBot = new WrestlerBot();
+		AddChild(westBot);
+		westBot.Initialize(westWrestler, eastWrestler, dohyoCenter);
 	}
 
 	private void OnBodyExited(Node body)
@@ -97,6 +117,15 @@ public partial class Main : Node
 	// Called every frame. 'delta' is the elapsed time since the previous frame.
 	public override void _Process(double delta)
 	{
+		// Switch input methods with function keys
+		if (Input.IsKeyPressed(Key.F1))
+			currentWestInputMethod = WestInputMethod.Arrows;
+		else if (Input.IsKeyPressed(Key.F2))
+			currentWestInputMethod = WestInputMethod.Numpad;
+		else if (Input.IsKeyPressed(Key.F3))
+			currentWestInputMethod = WestInputMethod.Controller;
+		else if (Input.IsKeyPressed(Key.F4))
+			currentWestInputMethod = WestInputMethod.Bot;
 	}
 
 	public override void _PhysicsProcess(double delta)
@@ -117,12 +146,8 @@ public partial class Main : Node
 			}
 		}			
 
-		// West wrestler: Arrow keys
-		Vector2 westInput = Vector2.Zero;
-		if (Input.IsActionPressed("ui_up")) westInput.Y -= 1;
-		if (Input.IsActionPressed("ui_down")) westInput.Y += 1;
-		if (Input.IsActionPressed("ui_left")) westInput.X -= 1;
-		if (Input.IsActionPressed("ui_right")) westInput.X += 1;
+		// West wrestler: Get input based on selected method
+		Vector2 westInput = GetWestWrestlerInput();
 
 		if (westInput != Vector2.Zero)
 		{
@@ -132,5 +157,77 @@ public partial class Main : Node
 				westWrestler.ApplyCentralImpulse(westInput * acceleration * (float)delta);
 			}
 		}
+	}
+	
+	private Vector2 GetWestWrestlerInput()
+	{
+		switch (currentWestInputMethod)
+		{
+			case WestInputMethod.Arrows:
+				return GetArrowKeysInput();
+			case WestInputMethod.Numpad:
+				return GetNumpadInput();
+			case WestInputMethod.Controller:
+				return GetControllerInput();
+			case WestInputMethod.Bot:
+				return westBot.GetBotInput();
+			default:
+				return Vector2.Zero;
+		}
+	}
+	
+	private Vector2 GetArrowKeysInput()
+	{
+		Vector2 input = Vector2.Zero;
+		if (Input.IsActionPressed("ui_up")) input.Y -= 1;
+		if (Input.IsActionPressed("ui_down")) input.Y += 1;
+		if (Input.IsActionPressed("ui_left")) input.X -= 1;
+		if (Input.IsActionPressed("ui_right")) input.X += 1;
+		return input;
+	}
+	
+	private Vector2 GetNumpadInput()
+	{
+		Vector2 input = Vector2.Zero;
+		// Main directions
+		if (Input.IsKeyPressed(Key.Key8) || Input.IsKeyPressed(Key.Kp8)) input.Y -= 1; // Up
+		if (Input.IsKeyPressed(Key.Key2) || Input.IsKeyPressed(Key.Kp2)) input.Y += 1; // Down
+		if (Input.IsKeyPressed(Key.Key4) || Input.IsKeyPressed(Key.Kp4)) input.X -= 1; // Left
+		if (Input.IsKeyPressed(Key.Key6) || Input.IsKeyPressed(Key.Kp6)) input.X += 1; // Right
+		
+		// Diagonals
+		if (Input.IsKeyPressed(Key.Key7) || Input.IsKeyPressed(Key.Kp7)) { input.X -= 1; input.Y -= 1; } // Up-Left
+		if (Input.IsKeyPressed(Key.Key9) || Input.IsKeyPressed(Key.Kp9)) { input.X += 1; input.Y -= 1; } // Up-Right
+		if (Input.IsKeyPressed(Key.Key1) || Input.IsKeyPressed(Key.Kp1)) { input.X -= 1; input.Y += 1; } // Down-Left
+		if (Input.IsKeyPressed(Key.Key3) || Input.IsKeyPressed(Key.Kp3)) { input.X += 1; input.Y += 1; } // Down-Right
+		
+		return input;
+	}
+	
+	private Vector2 GetControllerInput()
+	{
+		Vector2 input = Vector2.Zero;
+		
+		// Left stick for main movement
+		input.X = Input.GetJoyAxis(0, JoyAxis.LeftX);
+		input.Y = Input.GetJoyAxis(0, JoyAxis.LeftY);
+		
+		// Apply deadzone
+		if (Mathf.Abs(input.X) < 0.2f)
+			input.X = 0;
+		if (Mathf.Abs(input.Y) < 0.2f)
+			input.Y = 0;
+			
+		// D-pad support
+		if (Input.IsJoyButtonPressed(0, JoyButton.DpadUp))
+			input.Y = -1;
+		if (Input.IsJoyButtonPressed(0, JoyButton.DpadDown))
+			input.Y = 1;
+		if (Input.IsJoyButtonPressed(0, JoyButton.DpadLeft))
+			input.X = -1;
+		if (Input.IsJoyButtonPressed(0, JoyButton.DpadRight))
+			input.X = 1;
+			
+		return input;
 	}
 }
