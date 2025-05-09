@@ -253,24 +253,37 @@ public partial class WrestlerBot : Node
         }
         else
         {
-            // We're at the center, now look for the opponent
+            // We're at the center, now attack aggressively
             Vector2 toOpponent = (opponentPosition - myPosition).Normalized();
             
-            if (opponentDistanceToCenter > localRingRadius * 0.6f)
+            // Calculate push vector - directly away from center
+            Vector2 pushOutDirection = (opponentPosition - dohyoCenter).Normalized();
+            
+            // Calculate the angle between our direct path to opponent and the ideal push-out path
+            float dot = toOpponent.Dot(pushOutDirection);
+            
+            if (opponentDistanceToCenter > localRingRadius * 0.7f)
             {
-                // Opponent is far from center, charge at them
+                // Opponent is close to the edge - use direct ram to push them out
                 finalDirection = toOpponent;
+                GD.Print("Controller: Ramming opponent at edge");
             }
-            else if (distanceBetweenWrestlers < localRingRadius * 0.2f)
+            else if (dot > 0.7f)
             {
-                // Opponent is close, push them away from center
-                Vector2 pushDirection = (opponentPosition - dohyoCenter).Normalized();
-                finalDirection = pushDirection;
+                // We're in a good position to push them straight out (within ~45 degrees)
+                finalDirection = toOpponent;
+                GD.Print("Controller: Good push angle, moving directly to opponent");
             }
             else
             {
-                // Move toward opponent but maintain center advantage
-                finalDirection = (toOpponent * 0.7f + toCenter * 0.3f).Normalized();
+                // Need to reposition for a better push angle
+                // Move toward a position better aligned for pushing out
+                Vector2 repositionTarget = dohyoCenter + pushOutDirection * (localRingRadius * 0.3f);
+                Vector2 toRepositionPoint = (repositionTarget - myPosition).Normalized();
+                
+                // Apply some weight to not lose center control completely
+                finalDirection = (toRepositionPoint * 0.8f + toCenter * 0.2f).Normalized();
+                GD.Print("Controller: Repositioning for better push angle");
             }
         }
         
