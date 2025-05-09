@@ -44,21 +44,48 @@ A 2D sumo wrestling game where two wrestlers battle to push each other out of th
   - D: Move right
 
 - **West Wrestler (Red)**:
-  - ↑: Move up
-  - ←: Move left
-  - ↓: Move down
-  - →: Move right
+  - Choose control method with function keys:
+    - F1: Arrow Keys
+    - F2: Numpad (8 directional movement)
+    - F3: Xbox Controller
+    - F4: Bot AI control
+
+  - **Arrow Keys (F1)**:
+    - ↑: Move up
+    - ←: Move left
+    - ↓: Move down
+    - →: Move right
+    
+  - **Numpad (F2)**:
+    - 8: Move up
+    - 4: Move left
+    - 2: Move down
+    - 6: Move right
+    - 7: Move up-left
+    - 9: Move up-right
+    - 1: Move down-left
+    - 3: Move down-right
+    
+  - **Xbox Controller (F3)**:
+    - Left stick or D-pad for movement
+
+### Bot AI
+When using Bot AI control (F4), you can switch between different bot strategies:
+- **1**: Chaser - Always moves directly toward the opponent
+- **2**: Circler - Circles around the opponent to confuse them
+- **3**: Controller - Captures center position, attacks, then returns to center
 
 ### Gameplay
 1. Two wrestlers start on opposite sides of the dohyo (sumo ring)
 2. Use the controls to move your wrestler
 3. Push your opponent out of the ring to win
-4. After a winner is declared, press the "RESTART" button to play again
+4. After a winner is declared, press the "RESTART" button or Space/Enter to play again
 
 ## Development
 
 This game was developed using C# in Godot Mono. Key files:
 - `Main.cs`: Controls game flow, input handling, and scene setup
+- `WrestlerBot.cs`: AI implementation for bot-controlled wrestler
 - `rikishi_rigid.tscn`: The wrestler scene using RigidBody2D for physics
 - `dohyo.tscn`: The sumo ring
 
