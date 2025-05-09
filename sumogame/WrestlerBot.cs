@@ -73,6 +73,24 @@ public partial class WrestlerBot : Node
         dohyoCenter = center;
     }
     
+    // Reset the bot's state when a match is reset
+    public void ResetState()
+    {
+        // Reset Controller bot state
+        controllerState = ControllerState.CenterSeeking;
+        controllerStateTimer = 0;
+        madeContactWithOpponent = false;
+        lastOpponentPosition = Vector2.Zero;
+        previousDistanceToOpponent = float.MaxValue;
+        
+        // Reset Circler bot state
+        circleTimer = 0;
+        // Randomly choose initial circling direction
+        circleClockwise = random.Next(2) == 0;
+        
+        GD.Print("Bot state reset");
+    }
+    
     // Set the estimated ring radius
     public void SetRingRadius(float radius)
     {
@@ -303,7 +321,6 @@ public partial class WrestlerBot : Node
                 if (myDistanceToCenter <= centerThreshold)
                 {
                     controllerState = ControllerState.Attacking;
-                    controllerStateTimer = 0;
                     GD.Print("Controller: Center reached, now attacking opponent");
                 }
                 break;

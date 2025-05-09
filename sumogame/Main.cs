@@ -191,11 +191,22 @@ public partial class Main : Node
 		eastWrestler.Rotation = 0;
 		westWrestler.Rotation = 0;
 		
+		// Reset angular velocity
+		eastWrestler.AngularVelocity = 0;
+		westWrestler.AngularVelocity = 0;
+		
+		// Reset forces using Godot methods
+		eastWrestler.ConstantForce = Vector2.Zero;
+		westWrestler.ConstantForce = Vector2.Zero;
+		
+		// Reset bot state
+		westBot.ResetState();
+		
 		// Reset game state
 		gameOver = false;
 		canResetMatch = false;
 		
-		GD.Print("Match reset - wrestlers repositioned");
+		GD.Print("Match reset - wrestlers repositioned and bot state reset");
 	}
 	
 	// Full game reset by reloading the scene
