@@ -40,6 +40,7 @@ public partial class Main : Node
 	// Game state tracking
 	private bool gameOver = false;
 	private bool canResetMatch = false;
+	private bool isResetting = false;
 
 	// Called when the node enters the scene tree for the first time.
 	public override void _Ready()
@@ -133,7 +134,7 @@ public partial class Main : Node
 
 	private void OnBodyExited(Node body)
 	{
-		if (gameOver) return; // Prevent multiple triggers
+		if (gameOver || isResetting) return; // Prevent multiple triggers
 		
 		gameOver = true;
 		canResetMatch = true;
@@ -172,41 +173,72 @@ public partial class Main : Node
 	// Reset wrestlers without reloading the whole scene
 	private void ResetMatch()
 	{
+		if (isResetting) return; // Prevent multiple resets at once
+		isResetting = true;
+		
+		// Prepare for reset
+		PrepareWrestlersForReset();
+		
+		// Use CallDeferred to ensure the physics engine gets a chance to process the changes
+		CallDeferred("CompleteReset");
+	}
+	
+	private void PrepareWrestlersForReset()
+	{
+		// Freeze the bodies to prevent further physics interaction
+		eastWrestler.Freeze = true;
+		westWrestler.Freeze = true;
+		
 		// Hide the result panel
 		hud.Hide();
 		
-		// Reset positions
-		eastWrestler.Position = markerEast.GlobalPosition;
-		westWrestler.Position = markerWest.GlobalPosition;
+		// Reset bot state
+		westBot.ResetState();
+		
+		GD.Print("Preparing wrestlers for reset...");
+	}
+	
+	// Called via CallDeferred to complete the reset after physics frame
+	private void CompleteReset()
+	{
+		// Reset positions - force global position update
+		eastWrestler.GlobalPosition = markerEast.GlobalPosition;
+		westWrestler.GlobalPosition = markerWest.GlobalPosition;
 		
 		// Reset velocities
 		eastWrestler.LinearVelocity = Vector2.Zero;
 		westWrestler.LinearVelocity = Vector2.Zero;
 		
+		// Reset rotation and angular velocity
+		eastWrestler.Rotation = 0;
+		westWrestler.Rotation = 0;
+		eastWrestler.AngularVelocity = 0;
+		westWrestler.AngularVelocity = 0;
+		
 		// Reset dampening
 		eastWrestler.LinearDamp = 0;
 		westWrestler.LinearDamp = 0;
 		
-		// Reset rotation
-		eastWrestler.Rotation = 0;
-		westWrestler.Rotation = 0;
-		
-		// Reset angular velocity
-		eastWrestler.AngularVelocity = 0;
-		westWrestler.AngularVelocity = 0;
-		
-		// Reset forces using Godot methods
+		// Reset constant forces
 		eastWrestler.ConstantForce = Vector2.Zero;
 		westWrestler.ConstantForce = Vector2.Zero;
 		
-		// Reset bot state
-		westBot.ResetState();
+		// Wait one more frame before unfreezing
+		CallDeferred("UnfreezeWrestlers");
+	}
+	
+	private void UnfreezeWrestlers()
+	{
+		// Unfreeze the bodies to allow physics interaction again
+		eastWrestler.Freeze = false;
+		westWrestler.Freeze = false;
 		
-		// Reset game state
+		// Reset game state flags
 		gameOver = false;
 		canResetMatch = false;
+		isResetting = false;
 		
-		GD.Print("Match reset - wrestlers repositioned and bot state reset");
+		GD.Print("Match reset complete - wrestlers repositioned and unfrozen");
 	}
 	
 	// Full game reset by reloading the scene
@@ -219,7 +251,7 @@ public partial class Main : Node
 	public override void _Process(double delta)
 	{
 		// Check for reset input
-		if (canResetMatch && (Input.IsKeyPressed(Key.Space) || Input.IsKeyPressed(Key.Enter)))
+		if (canResetMatch && !isResetting && (Input.IsKeyPressed(Key.Space) || Input.IsKeyPressed(Key.Enter)))
 		{
 			ResetMatch();
 		}
@@ -263,7 +295,7 @@ public partial class Main : Node
 
 	public override void _PhysicsProcess(double delta)
 	{
-		if (gameOver) return;
+		if (gameOver || isResetting) return;
 		
 		// East wrestler: WASD
 		Vector2 eastInput = Vector2.Zero;
