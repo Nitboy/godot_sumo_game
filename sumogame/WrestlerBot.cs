@@ -33,6 +33,8 @@ public partial class WrestlerBot : Node
     private RigidBody2D opponent;
     // Reference to the dohyo center
     private Vector2 dohyoCenter;
+    // Estimated ring radius
+    private float ringRadius;
     // Timer for changing direction when circling
     private float circleTimer = 0;
     // Current circling direction (clockwise or counter-clockwise)
@@ -51,6 +53,12 @@ public partial class WrestlerBot : Node
         wrestler = controlledWrestler;
         opponent = opponentWrestler;
         dohyoCenter = center;
+    }
+    
+    // Set the estimated ring radius
+    public void SetRingRadius(float radius)
+    {
+        ringRadius = radius;
     }
     
     // Set the bot strategy
@@ -173,17 +181,17 @@ public partial class WrestlerBot : Node
         // Stay away from ring edge
         Vector2 myToCenter = dohyoCenter - myPosition;
         float distanceFromCenter = myToCenter.Length();
-        float ringRadius = 200; // Adjust based on ring size
+        float localRingRadius = ringRadius > 0 ? ringRadius : 200; // Fallback to 200 if not set
         Vector2 edgeAvoidance = Vector2.Zero;
         
-        if (distanceFromCenter > ringRadius * 0.7f)
+        if (distanceFromCenter > localRingRadius * 0.7f)
         {
             // Getting close to edge, bias toward center
             edgeAvoidance = myToCenter.Normalized();
         }
         
         // If opponent is near edge and behind us, switch to attack mode
-        bool opponentNearEdge = (dohyoCenter - opponentPosition).Length() > ringRadius * 0.8f;
+        bool opponentNearEdge = (dohyoCenter - opponentPosition).Length() > localRingRadius * 0.8f;
         Vector2 finalDirection;
         
         if (opponentNearEdge)
@@ -228,12 +236,17 @@ public partial class WrestlerBot : Node
         float opponentDistanceToCenter = (opponentPosition - dohyoCenter).Length();
         float distanceBetweenWrestlers = (myPosition - opponentPosition).Length();
         
-        // Determine ring radius (adjust as needed)
-        float ringRadius = 200;
+        // Use the estimated ring radius or fallback
+        float localRingRadius = ringRadius > 0 ? ringRadius : 200;
+        
+        GD.Print($"Controller Bot - Distance to center: {myDistanceToCenter}, Ring radius: {localRingRadius}");
         
         Vector2 finalDirection;
         
-        if (myDistanceToCenter > 50)
+        // Adjust threshold to 15% of estimated ring radius
+        float centerThreshold = localRingRadius * 0.15f;
+        
+        if (myDistanceToCenter > centerThreshold)
         {
             // Not at center yet, move toward center
             finalDirection = toCenter;
@@ -243,12 +256,12 @@ public partial class WrestlerBot : Node
             // We're at the center, now look for the opponent
             Vector2 toOpponent = (opponentPosition - myPosition).Normalized();
             
-            if (opponentDistanceToCenter > ringRadius * 0.6f)
+            if (opponentDistanceToCenter > localRingRadius * 0.6f)
             {
                 // Opponent is far from center, charge at them
                 finalDirection = toOpponent;
             }
-            else if (distanceBetweenWrestlers < 70)
+            else if (distanceBetweenWrestlers < localRingRadius * 0.2f)
             {
                 // Opponent is close, push them away from center
                 Vector2 pushDirection = (opponentPosition - dohyoCenter).Normalized();

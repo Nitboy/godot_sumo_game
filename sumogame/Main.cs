@@ -9,6 +9,7 @@ public partial class Main : Node
 	private CanvasLayer hud;
 	private Marker2D markerEast;
 	private Marker2D markerWest;
+	private Marker2D centerMarker; // Center marker for visualization
 
 	private Area2D dohyoArea;
 	private WrestlerBot westBot; // Bot controlling west wrestler
@@ -44,7 +45,21 @@ public partial class Main : Node
 		hud.Hide();
 		markerEast = dohyo.GetNode<Marker2D>("MarkerEast");
 		markerWest = dohyo.GetNode<Marker2D>("MarkerWest");
-		dohyoCenter = ((Node2D)dohyo).GlobalPosition;
+		
+		// Calculate dohyo center as the midpoint between the east and west markers
+		dohyoCenter = (markerEast.GlobalPosition + markerWest.GlobalPosition) / 2;
+		
+		// Create a visual marker for the center (for debugging)
+		centerMarker = new Marker2D();
+		centerMarker.GlobalPosition = dohyoCenter;
+		AddChild(centerMarker);
+		
+		// Add a visible ColorRect to the center marker
+		var centerVisual = new ColorRect();
+		centerVisual.Color = new Color(1, 0, 0, 0.5f); // Semi-transparent red
+		centerVisual.Size = new Vector2(20, 20); // 20x20 pixels
+		centerVisual.Position = new Vector2(-10, -10); // Center the rect
+		centerMarker.AddChild(centerVisual);
 
 		var wrestlerScene = GD.Load<PackedScene>("res://rikishi_rigid.tscn");
 
@@ -82,8 +97,20 @@ public partial class Main : Node
 		AddChild(westBot);
 		westBot.Initialize(westWrestler, eastWrestler, dohyoCenter);
 		
+		// Calculate and set ring radius (distance from center to markers)
+		float eastRadius = (markerEast.GlobalPosition - dohyoCenter).Length();
+		float westRadius = (markerWest.GlobalPosition - dohyoCenter).Length();
+		float avgRadius = (eastRadius + westRadius) / 2;
+		westBot.SetRingRadius(avgRadius);
+		
+		// Debug log radius
+		GD.Print("Ring Radius: ", avgRadius);
+		
 		// Create bot strategy label
 		CreateBotStrategyLabel();
+		
+		// Debug log center position
+		GD.Print("Dohyo Center Position: ", dohyoCenter);
 	}
 	
 	private void CreateBotStrategyLabel()
